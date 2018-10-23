@@ -4,11 +4,15 @@ import pytuya
 import secrets
 
 devices = {}
+groups = {}
 
 app = Flask(__name__)
 
 def init_devices():
     global devices
+    global groups
+
+    groups = secrets.GROUPS
     devices_info = secrets.DEVICES_INFO
 
     for dev_name in devices_info.keys():
@@ -42,20 +46,22 @@ def action():
     device = args['device']
     key = args['key']
 
-    
-
     if not key == secrets.PLUGS_KEY:
         return jsonify({'status': 'FAIL', 'reason': 'Invalid key'})
     
-    if device not in devices:
+    if device not in devices and device not in groups:
         return jsonify({'status': 'FAIL', 'reason': 'Invalid device'})
 
     if 'value' in args:
         value = args['value']
         if value not in ['on', 'off', 'toggle']:
             return jsonify({'status': 'FAIL', 'reason': 'Invalid value'})
-        
-        threading.Thread(target=set, args=[device, value]).start()
+
+        if device in groups:
+            for d in groups[device]:
+                threading.Thread(target=set, args=[d, value]).start()
+        else:
+            threading.Thread(target=set, args=[device, value]).start()
         return jsonify({'status': 'OK'})
     else:
         value = get(device)
